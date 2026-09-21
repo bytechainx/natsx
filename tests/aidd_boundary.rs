@@ -17,6 +17,7 @@
 //! // AIDD: stream/consumer 名含点号或通配符 | 来源=AI | 复核=ZoneCNH/2026-09-22 | 依据=标准.md §4 名称校验与服务端约束对齐 | 结论=保留
 //! // AIDD: mTLS 只给 cert 或只给 key、CA 路径不存在 | 来源=AI | 复核=ZoneCNH/2026-09-22 | 依据=标准.md §3 TLS 材料必须成对且可访问 | 结论=保留
 //! // AIDD: 未连接池的全部数据面入口 | 来源=AI | 复核=ZoneCNH/2026-09-22 | 依据=标准.md §4 未连接/已关闭 fail-closed 不 panic | 结论=保留
+//! // AIDD: TOML 错误回显承载凭据的源码行 | 来源=AI | 复核=ZoneCNH/2026-09-22 | 依据=标准.md §2 错误消息不得回显敏感值 | 结论=保留
 
 use std::time::Duration;
 
@@ -226,6 +227,40 @@ fn tls_material_must_be_complete() {
             .is_err(),
         "CA 路径不存在必须被拒绝"
     );
+}
+
+/// 边界：TOML 的语法/语义错误**不得**把承载凭据的源码行回显进公开错误消息。
+///
+/// 回归保护：`toml` 的错误 `Display` 会连原始源码行一起渲染。此前 `from_toml` 直接
+/// 插值 `{error}`，于是「凭据行本身写得不对」时（引号未闭合、或该行触发未知字段错误），
+/// 凭据片段会被原样写进 `NatsError::Serialization` —— 而错误消息通常会进日志与打点，
+/// 等于把凭据泄漏到可观测面。标准.md §2 要求敏感字段既不能经 TOML 进入、也不能被回显。
+#[test]
+fn toml_error_never_echoes_credential_value() {
+    let cases = [
+        // 语法错误：未闭合引号，出错行恰是凭据行（原实现回显整行）。
+        "schema_version = 1\npassword = \"aidd-secret-probe\n",
+        // 语义错误：未知字段所在行携带看起来像凭据的值（原实现回显该行）。
+        "schema_version = 1\nendpoint = \"svc:aidd-secret-probe@host\"\n",
+    ];
+    for text in cases {
+        let error = NatsConfig::from_toml(text).expect_err("非法 TOML 必须失败");
+        let message = error.to_string();
+        assert!(
+            !message.contains("aidd-secret-probe"),
+            "错误消息回显了凭据片段: {message}"
+        );
+        assert!(
+            !message.contains("2 |") && !message.contains("^"),
+            "错误消息仍带源码片段: {message}"
+        );
+    }
+
+    // 定位信息必须保留（否则等于牺牲可诊断性换安全）。
+    let message = NatsConfig::from_toml(cases[0])
+        .expect_err("非法 TOML 必须失败")
+        .to_string();
+    assert!(message.contains("第 2 行"), "应保留行号定位信息: {message}");
 }
 
 /// 边界：未连接池的全部数据面入口都必须 fail-closed，且不得 panic。

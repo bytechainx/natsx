@@ -12,9 +12,19 @@
 
 - 特性 002 三类测试面：`tests/tdd_contracts.rs`（逐公开入口的行为契约，头部 `TDD-PROBE` 表
   覆盖公开接口契约登记的全部 10 个入口）、`tests/sdd_spec.rs`（`docs/标准.md` 五章 1:1 的
-  `SPEC-MAP` 断言）、`tests/aidd_boundary.rs`（9 条对抗/边界用例与 AIDD 复核表）。
+  `SPEC-MAP` 断言）、`tests/aidd_boundary.rs`（10 条对抗/边界用例与 AIDD 复核表）。
 - `tests/live_nats.rs`：真连服用例（发布/订阅往返 + ping RTT + request-reply + close 收尾），
   恒 `#[ignore]`，凭据只读 `FOUNDATIONX_NATSX_*` 环境变量。
+
+## [0.1.2] - 2026-09-22
+
+### 修正
+
+- 凭据不再经 TOML 错误消息泄漏：`NatsConfig::from_toml` 与内部的敏感字段预检此前把 `toml`
+  的错误原文（含出错行的源码片段）插值进 `NatsError::Serialization`；当出错行正是承载凭据的
+  那一行（如 `password = "…` 引号未闭合，或该行触发未知字段错误）时，凭据片段会被回显进日志
+  与打点。现改为只保留错误摘要、行号与字节区间，不回显 TOML 源码。
+  `docs/标准.md` §2 同步补一条对应该义务的条目。
 
 ## [0.1.1] - 2026-09-22
 
