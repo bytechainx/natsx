@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use async_nats::Client;
+use async_nats::{Client, ServerInfo};
 use bytes::Bytes;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
@@ -48,14 +48,31 @@ pub struct NatsPoolStats {
 pub struct NatsHealth {
     /// 是否已连接且 `flush` 成功。
     pub connected: bool,
-    /// 服务端名（`server_name`，不可用时为 `host:port`，未连接时为空串）。
+    /// 服务端标识：优先 `server_name`，为空时回落 `host:port`。
+    ///
+    /// **未连接、或服务端信息不可用时为空串**——不会编造地址。
     pub server: String,
     /// 最近一次 `flush` 往返耗时（毫秒）；未连接时为 0。
     pub rtt_ms: f64,
     /// 服务端是否声明支持 JetStream。
+    ///
+    /// 服务端信息不可用时为 `false`，表示**未知**而非已证否。
     pub jetstream: bool,
     /// 诊断说明。
     pub detail: String,
+}
+
+/// 渲染展示用的服务端标识：优先 `server_name`，为空时回落 `host:port`。
+///
+/// 传入 `None`（服务端信息获取失败）时返回**空串**。这里刻意不编造任何地址：
+/// `ServerInfo::default()` 的 `host` 为空、`port` 为 `0`，格式化会得到 `":0"`
+/// 这种看起来像地址、实际无意义的串，会被 readiness 面板当成真实的服务端。
+fn render_server(info: Option<&ServerInfo>) -> String {
+    match info {
+        Some(info) if info.server_name.is_empty() => format!("{}:{}", info.host, info.port),
+        Some(info) => info.server_name.clone(),
+        None => String::new(),
+    }
 }
 
 /// 收到的 Core NATS 消息。
@@ -499,6 +516,10 @@ impl NatsPool {
     /// 并在 `detail` 中给出失败原因；仅当配置本身使探测无法进行时才可能返回错误
     /// （当前实现恒为 `Ok`）。
     ///
+    /// 服务端信息（`server` / `jetstream`）获取失败时**如实标注为未知**：
+    /// `server` 为空串、`detail` 附带说明，而不是回落到 `ServerInfo::default()`
+    /// 那条会渲染出 `":0"` 的路径。
+    ///
     /// # Errors
     ///
     /// 保留 `Result` 形态以便未来扩展；当前实现不返回错误。
@@ -516,26 +537,30 @@ impl NatsPool {
                 },
             });
         };
-        let info = client.try_server_info().unwrap_or_default();
-        let server = if info.server_name.is_empty() {
-            format!("{}:{}", info.host, info.port)
+        // 获取失败时保持 `None`：`ServerInfo::default()` 的 host 为空、port 为 0，
+        // 直接格式化会得到一个看似地址实为 `":0"` 的串——宁可如实标注为未知。
+        let info = client.try_server_info();
+        let server = render_server(info.as_ref());
+        let jetstream = info.as_ref().is_some_and(|info| info.jetstream);
+        let info_note = if info.is_some() {
+            ""
         } else {
-            info.server_name.clone()
+            "；服务端信息不可用（server 与 jetstream 未知）"
         };
         match self.ping().await {
             Ok(rtt) => Ok(NatsHealth {
                 connected: true,
                 server,
                 rtt_ms: rtt.as_secs_f64() * 1_000.0,
-                jetstream: info.jetstream,
-                detail: "flush ok".to_string(),
+                jetstream,
+                detail: format!("flush ok{info_note}"),
             }),
             Err(error) => Ok(NatsHealth {
                 connected: false,
                 server,
                 rtt_ms: 0.0,
-                jetstream: info.jetstream,
-                detail: error.to_string(),
+                jetstream,
+                detail: format!("{error}{info_note}"),
             }),
         }
     }
@@ -878,6 +903,40 @@ mod tests {
             .await
             .expect_err("任务 panic 必须作为关停错误上报");
         assert!(matches!(error, NatsError::Connection(_)));
+    }
+
+    /// `render_server` 在服务端信息缺失时必须返回空串，**不得编造地址**。
+    ///
+    /// 回归保护：此前实现走 `try_server_info().unwrap_or_default()`，而
+    /// `ServerInfo::default()` 的 host 为空、port 为 0，渲染结果正是下面锁定的
+    /// `":0"`——一个看起来像 host:port、实际无意义的串，会被 readiness 面板当成
+    /// 真实服务端地址。因此调用方绝不能把 `None` 折叠成 `default()`。
+    #[test]
+    fn render_server_never_fabricates_address() {
+        assert_eq!(
+            render_server(None),
+            "",
+            "服务端信息缺失时必须为空串，不得编造地址"
+        );
+
+        // 锁定「伪造串」长什么样：它正是旧实现会输出的值。
+        assert_eq!(render_server(Some(&ServerInfo::default())), ":0");
+
+        let named = ServerInfo {
+            server_name: "nats-1".into(),
+            host: "10.0.0.1".into(),
+            port: 4222,
+            ..ServerInfo::default()
+        };
+        assert_eq!(render_server(Some(&named)), "nats-1");
+
+        // `server_name` 为空时回落到 `host:port`。
+        let unnamed = ServerInfo {
+            host: "10.0.0.1".into(),
+            port: 4222,
+            ..ServerInfo::default()
+        };
+        assert_eq!(render_server(Some(&unnamed)), "10.0.0.1:4222");
     }
 
     #[test]
