@@ -8,6 +8,14 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 特性 002 三类测试面：`tests/tdd_contracts.rs`（逐公开入口的行为契约，头部 `TDD-PROBE` 表
+  覆盖公开接口契约登记的全部 10 个入口）、`tests/sdd_spec.rs`（`docs/标准.md` 五章 1:1 的
+  `SPEC-MAP` 断言）、`tests/aidd_boundary.rs`（9 条对抗/边界用例与 AIDD 复核表）。
+- `tests/live_nats.rs`：真连服用例（发布/订阅往返 + ping RTT + request-reply + close 收尾），
+  恒 `#[ignore]`，凭据只读 `FOUNDATIONX_NATSX_*` 环境变量。
+
 ## [0.1.0] - 2026-09-21
 
 ### 新增
