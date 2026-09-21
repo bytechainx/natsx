@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 //! 配置校验、环境变量加载、TLS 策略选择与敏感字段脱敏。
 
 use std::sync::{Mutex, MutexGuard, PoisonError};

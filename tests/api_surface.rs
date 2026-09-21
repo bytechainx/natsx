@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 //! 公共 API 表面：类型存在性、`Send + Sync`、`Clone`、错误分类与 Debug 输出。
 
 use std::time::Duration;
