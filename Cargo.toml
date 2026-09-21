@@ -7,7 +7,7 @@ description = "NATS Core and JetStream adapter with TLS policies, connection poo
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/bytechainx/natsx"
 homepage = "https://github.com/bytechainx/natsx"
-documentation = "https://docs.rs/natsx"
+documentation = "https://github.com/bytechainx/natsx#readme"
 readme = "README.md"
 keywords = ["nats", "messaging", "pubsub", "jetstream", "async"]
 categories = ["network-programming", "asynchronous"]
@@ -29,7 +29,3 @@ url = "2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]

@@ -1,10 +1,8 @@
 # natsx
 
-[![Crates.io](https://img.shields.io/crates/v/natsx.svg)](https://crates.io/crates/natsx)
-[![Documentation](https://docs.rs/natsx/badge.svg)](https://docs.rs/natsx)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
-NATS 适配器：Core NATS 发布/订阅 + JetStream 持久消费，零内部依赖、可直接发布的标准 Rust 组件库。
+NATS 适配器：Core NATS 发布/订阅 + JetStream 持久消费，零内部依赖的标准 Rust 组件库。
 
 - **连接池**：`NatsPool` 共享 `async-nats` 客户端句柄，`Clone` 后多任务共享同一连接；
 - **TLS 策略**：`TlsPolicy::{Prefer, Require, Disable}`，loopback 默认 `Prefer`、非 loopback 默认 `Require`，远程明文在配置层即被拒绝（fail-closed）；
@@ -16,8 +14,11 @@ NATS 适配器：Core NATS 发布/订阅 + JetStream 持久消费，零内部依
 
 ## 安装
 
-```bash
-cargo add natsx
+本 crate **不发布到 crates.io**，通过 git 依赖引入：
+
+```toml
+[dependencies]
+natsx = { git = "https://github.com/bytechainx/natsx" }
 ```
 
 ## 最小可运行示例
