@@ -4,3 +4,5 @@
 Cargo.lock
 # graft 代码图谱缓存（可再生）
 /graft/
+# omc agent 本地状态（checkpoint / replay，可再生，勿入库）
+/.omc/
