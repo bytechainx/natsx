@@ -16,6 +16,18 @@
 - `tests/live_nats.rs`：真连服用例（发布/订阅往返 + ping RTT + request-reply + close 收尾），
   恒 `#[ignore]`，凭据只读 `FOUNDATIONX_NATSX_*` 环境变量。
 
+## [0.1.1] - 2026-09-22
+
+### 修正
+
+- `tests/config_env.rs` 的环境变量夹具改为对 `FOUNDATIONX_NATSX_*` / `FOUNDATIONX_NATS_*`
+  全空间封闭（构造时快照并清空全部键、退出时按快照恢复），用例不再随调用环境漂移。
+  旧夹具只清理本用例显式设置的少数键：当进程环境里已存在 `FOUNDATIONX_NATSX_URL`
+  （联调时 `source natsx.env`，`run-release-gate.sh <crate> --live` 即此形态）时，
+  `from_env` 的 `URL` 优先于 `SERVERS`，`from_env_handles_servers_list_and_invalid_values`
+  会读到外部注入的 URL 并断言失败。实测：干净环境 7/7 通过，带 live 环境 6/7 通过。
+  **无生产代码改动**，公开行为与语义均不变。
+
 ## [0.1.0] - 2026-09-21
 
 ### 新增

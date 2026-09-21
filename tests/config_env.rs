@@ -10,8 +10,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use natsx::{
-    url_is_loopback, NatsConfig, TlsPolicy, ENV_CONNECT_TIMEOUT_MS, ENV_MAX_RECONNECTS, ENV_NAME,
-    ENV_PASSWORD, ENV_SERVERS, ENV_TLS_POLICY, ENV_TOKEN, ENV_URL, ENV_USER,
+    url_is_loopback, NatsConfig, TlsPolicy, ENV_CONNECT_TIMEOUT_MS, ENV_LEGACY_PREFIX,
+    ENV_MAX_RECONNECTS, ENV_NAME, ENV_PASSWORD, ENV_PREFIX, ENV_SERVERS, ENV_TLS_POLICY, ENV_TOKEN,
+    ENV_URL, ENV_USER,
 };
 
 /// 环境变量是进程级共享状态，写入 env 的用例必须串行执行。
@@ -21,31 +22,71 @@ fn env_guard() -> MutexGuard<'static, ()> {
     ENV_LOCK.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// 退出作用域（含 panic）时清理本次设置的环境变量。
+/// 规范前缀与兼容前缀下的全部后缀。
+///
+/// 用例必须对**整个** `FOUNDATIONX_NATSX_*` / `FOUNDATIONX_NATS_*` 空间保持封闭：
+/// 本机联调常把 live 凭据 `source` 进 shell（`run-release-gate.sh --live` 即如此），
+/// 此时进程环境里已存在 `URL` 等键。`from_env` 的 `URL` 优先于 `SERVERS`，
+/// 只清理本用例显式设置的少数键会残留外部注入，导致断言随调用环境漂移。
+const ENV_SUFFIXES: [&str; 21] = [
+    "URL",
+    "SERVERS",
+    "USER",
+    "USERNAME",
+    "PASSWORD",
+    "TOKEN",
+    "NKEY_SEED",
+    "NAME",
+    "TLS",
+    "TLS_POLICY",
+    "TLS_CA_FILE",
+    "TLS_CERT_FILE",
+    "TLS_KEY_FILE",
+    "JETSTREAM",
+    "CONNECT_TIMEOUT_MS",
+    "OPERATION_TIMEOUT_MS",
+    "SUBSCRIPTION_CAPACITY",
+    "CLIENT_CAPACITY",
+    "MAX_RECONNECTS",
+    "RECONNECT_MAX_DELAY_MS",
+    "IGNORE_DISCOVERED_SERVERS",
+];
+
+/// 环境隔离夹具：构造时快照并清空全部 `FOUNDATIONX_NATS(X)_*` 键，
+/// 退出作用域（含 panic）时按快照恢复，使每条用例只看到自己显式设置的内容。
 struct EnvScope {
-    keys: Vec<String>,
+    restore: Vec<(String, Option<String>)>,
 }
 
 impl EnvScope {
     fn new() -> Self {
-        Self { keys: Vec::new() }
+        let mut restore = Vec::new();
+        for suffix in ENV_SUFFIXES {
+            for prefix in [ENV_PREFIX, ENV_LEGACY_PREFIX] {
+                let key = format!("{prefix}{suffix}");
+                restore.push((key.clone(), std::env::var(&key).ok()));
+                std::env::remove_var(&key);
+            }
+        }
+        Self { restore }
     }
 
     fn set(&mut self, key: &str, value: &str) {
         std::env::set_var(key, value);
-        self.keys.push(key.to_string());
     }
 
     fn unset(&mut self, key: &str) {
         std::env::remove_var(key);
-        self.keys.push(key.to_string());
     }
 }
 
 impl Drop for EnvScope {
     fn drop(&mut self) {
-        for key in &self.keys {
-            std::env::remove_var(key);
+        for (key, value) in &self.restore {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
         }
     }
 }
