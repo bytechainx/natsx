@@ -1,0 +1,31 @@
+[package]
+name = "natsx"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "NATS Core and JetStream adapter with TLS policies, connection pooling and health reporting"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bytechainx/natsx"
+homepage = "https://github.com/bytechainx/natsx"
+documentation = "https://github.com/bytechainx/natsx#readme"
+readme = "README.md"
+keywords = ["nats", "messaging", "pubsub", "jetstream", "async"]
+categories = ["network-programming", "asynchronous"]
+include = ["src/**/*", "tests/**/*", "examples/**/*", "README.md", "LICENSE-*", "Cargo.toml"]
+
+[dependencies]
+# 默认 features 已含 jetstream / nkeys / ring（TLS 加密后端）；此处显式列出以固定能力边界。
+async-nats = { version = "0.50", features = ["jetstream", "nkeys", "ring"] }
+bytes = "1"
+futures-core = "0.3"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+toml = "0.8"
+tracing = "0.1"
+url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
