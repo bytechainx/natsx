@@ -32,6 +32,16 @@ pub fn validate_subject(subject: &str) -> NatsResult<()> {
 /// # Errors
 ///
 /// 违反 [`validate_subject`] 规则，或包含 `*` / `>` 时返回 [`NatsError::Config`]。
+///
+/// # Examples
+///
+/// ```
+/// use natsx::validate_publish_subject;
+///
+/// assert!(validate_publish_subject("orders.created").is_ok());
+/// assert!(validate_publish_subject("orders.*").is_err(), "发布不允许通配符");
+/// assert!(validate_publish_subject("orders created").is_err(), "不允许空白字符");
+/// ```
 pub fn validate_publish_subject(subject: &str) -> NatsResult<()> {
     validate_subject(subject)?;
     if subject.contains('*') || subject.contains('>') {
