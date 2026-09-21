@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 //! 不可达地址的失败路径：`connect()` 必须返回 `Err` 而不是挂起或 panic。
 //!
 //! 使用 `nats://127.0.0.1:1`（特权端口且无监听）保证连接必然被拒绝，

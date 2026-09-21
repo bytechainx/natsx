@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unreachable
+)]
 //! 纯函数行为：loopback 判定、subject / stream / consumer 名校验边界与超时校验。
 //!
 //! 这些函数不发起任何 IO，是 fail-closed 的第一道关卡。
