@@ -84,6 +84,12 @@ impl NatsConfig {
                 "connect/operation/reconnect 超时必须大于零",
             ));
         }
+        if self
+            .slow_consumer_timeout
+            .is_some_and(|timeout| timeout.is_zero())
+        {
+            return Err(NatsError::config("slow_consumer_timeout 必须大于零"));
+        }
         if self.subscription_capacity == 0 || self.client_capacity == 0 {
             return Err(NatsError::config("subscription/client capacity 必须大于零"));
         }
