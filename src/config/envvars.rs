@@ -67,6 +67,9 @@ impl NatsConfig {
         if let Some((key, value)) = lookup_env("OPERATION_TIMEOUT_MS") {
             self.operation_timeout = parse_millis(&value, &key)?;
         }
+        if let Some((key, value)) = lookup_env("SLOW_CONSUMER_TIMEOUT_MS") {
+            self.slow_consumer_timeout = Some(parse_millis(&value, &key)?);
+        }
         if let Some((key, value)) = lookup_env("RECONNECT_MAX_DELAY_MS") {
             self.reconnect_max_delay = parse_millis(&value, &key)?;
         }

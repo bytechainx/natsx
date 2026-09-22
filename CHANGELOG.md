@@ -8,6 +8,22 @@
 
 ## [Unreleased]
 
+### 修复
+
+- **重连退避加入 ±25% 抖动**（`reconnect_delay_callback` 路径）：原先纯指数退避是
+  确定性序列，大规模部署下服务端重启会引发所有客户端同时重连的同步风暴
+  （thundering herd）。抖动幅度与 postgresx `PgRetryConfig` 一致；退避上限仍受
+  `reconnect_max_delay` 约束。（对抗审查 P1-1）
+
+### 新增
+
+- **`NatsConfig::slow_consumer_timeout`（可选）**：订阅转发任务判定慢消费者的独立
+  超时，与服务端操作截止时间 `operation_timeout` 语义解耦。默认 `None` 回退
+  `operation_timeout`，行为向后兼容。配套入口：`NatsConfigBuilder::slow_consumer_timeout`、
+  环境变量 `FOUNDATIONX_NATSX_SLOW_CONSUMER_TIMEOUT_MS`、TOML `slow_consumer_timeout_ms`；
+  `NatsConfig::effective_slow_consumer_timeout()` 返回生效值，零值被 `validate` 拒绝。
+  （对抗审查 P1-3）
+
 ## [0.1.4] - 2026-09-22
 
 ### 变更

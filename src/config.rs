@@ -114,6 +114,13 @@ pub struct NatsConfig {
     pub connect_timeout: Duration,
     /// Core NATS / JetStream 操作截止时间。
     pub operation_timeout: Duration,
+    /// 慢消费者判定超时：订阅转发任务等待下游接收单条消息的上限。
+    ///
+    /// 与 [`NatsConfig::operation_timeout`]（服务端操作截止时间）语义不同：本字段
+    /// 专门约束订阅 channel 满时转发任务的等待时长，超时即判定下游为慢消费者
+    /// （计数并结束转发）。`None`（默认）回退为 `operation_timeout`，向后兼容；
+    /// 生效值经 [`NatsConfig::effective_slow_consumer_timeout`] 读取。
+    pub slow_consumer_timeout: Option<Duration>,
     /// 客户端名。
     pub name: String,
     /// 遗留 TLS 布尔开关（`true` 等价于 [`TlsPolicy::Require`]）。
@@ -151,6 +158,7 @@ impl Default for NatsConfig {
             nkey_seed: None,
             connect_timeout: Duration::from_secs(5),
             operation_timeout: Duration::from_secs(5),
+            slow_consumer_timeout: None,
             name: DEFAULT_CLIENT_NAME.to_string(),
             tls: false,
             tls_policy: None,
@@ -177,6 +185,7 @@ impl fmt::Debug for NatsConfig {
             .field("nkey_seed", &self.nkey_seed.as_ref().map(|_| "***"))
             .field("connect_timeout", &self.connect_timeout)
             .field("operation_timeout", &self.operation_timeout)
+            .field("slow_consumer_timeout", &self.slow_consumer_timeout)
             .field("name", &self.name)
             .field("tls", &self.tls)
             .field("tls_policy", &self.tls_policy)
@@ -211,6 +220,17 @@ impl NatsConfig {
     #[must_use]
     pub fn builder() -> NatsConfigBuilder {
         NatsConfigBuilder::new()
+    }
+
+    /// 慢消费者判定的生效超时：未显式配置时回退 `operation_timeout`。
+    ///
+    /// 语义区别：`operation_timeout` 约束服务端操作（request、建订阅等）的截止
+    /// 时间；本值仅约束订阅转发任务等待下游接收单条消息的时长，超时即判定
+    /// 慢消费者（计数并结束转发）。生产环境建议配置为远小于 `operation_timeout`
+    /// 的值（如 500ms~2s），以便及时发现消费停滞。
+    #[must_use]
+    pub fn effective_slow_consumer_timeout(&self) -> Duration {
+        self.slow_consumer_timeout.unwrap_or(self.operation_timeout)
     }
 
     /// 密码（敏感）。
@@ -623,5 +643,50 @@ subscription_capacity = 128
         // 非法数值同样被拒绝
         scope.set(ENV_MAX_RECONNECTS, "not-a-number");
         assert!(NatsConfig::from_env().is_err());
+    }
+
+    #[test]
+    fn slow_consumer_timeout_defaults_to_operation_timeout() {
+        // 默认未配置：生效值回退 operation_timeout（向后兼容）
+        let config = NatsConfig::default();
+        assert!(config.slow_consumer_timeout.is_none());
+        assert_eq!(
+            config.effective_slow_consumer_timeout(),
+            config.operation_timeout
+        );
+
+        // Builder 显式配置后生效值切换
+        let tuned = NatsConfig::builder()
+            .slow_consumer_timeout(Duration::from_millis(500))
+            .build()
+            .expect("Builder 构建");
+        assert_eq!(
+            tuned.effective_slow_consumer_timeout(),
+            Duration::from_millis(500)
+        );
+
+        // 零值被 validate 拒绝
+        assert!(NatsConfig::builder()
+            .slow_consumer_timeout(Duration::ZERO)
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn slow_consumer_timeout_survives_toml_and_debug() {
+        let config = NatsConfig::from_toml("schema_version = 1\nslow_consumer_timeout_ms = 250\n")
+            .expect("TOML 解析");
+        assert_eq!(
+            config.slow_consumer_timeout,
+            Some(Duration::from_millis(250))
+        );
+
+        // 未声明时保持 None（向后兼容）
+        let plain = NatsConfig::from_toml("schema_version = 1\n").expect("TOML 解析");
+        assert!(plain.slow_consumer_timeout.is_none());
+
+        // Debug 输出包含新字段
+        let debug = format!("{config:?}");
+        assert!(debug.contains("slow_consumer_timeout"));
     }
 }

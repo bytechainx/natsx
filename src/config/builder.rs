@@ -85,6 +85,16 @@ impl NatsConfigBuilder {
         self
     }
 
+    /// 设置慢消费者判定超时（订阅转发任务等待下游接收单条消息的上限）。
+    ///
+    /// 与 [`NatsConfigBuilder::operation_timeout`]（服务端操作截止时间）语义不同；
+    /// 未设置时回退 `operation_timeout`。零值会被 `validate` 拒绝。
+    #[must_use]
+    pub fn slow_consumer_timeout(mut self, timeout: Duration) -> Self {
+        self.config.slow_consumer_timeout = Some(timeout);
+        self
+    }
+
     /// 设置 TLS 策略。
     #[must_use]
     pub fn tls_policy(mut self, policy: TlsPolicy) -> Self {

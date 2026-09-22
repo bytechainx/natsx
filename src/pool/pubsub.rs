@@ -109,6 +109,9 @@ impl NatsPool {
         validate_subject(subject)?;
         let client = self.ready_client()?.clone();
         let timeout = self.inner.config.operation_timeout;
+        // 慢消费者判定走独立超时（未配置时回退 operation_timeout）：channel 满时
+        // 转发任务的等待不应与服务端操作截止时间耦合，否则检测会被拖到 5~30s
+        let slow_timeout = self.inner.config.effective_slow_consumer_timeout();
 
         let mut subscriber = tokio::time::timeout(timeout, client.subscribe(subject.to_string()))
             .await
@@ -132,11 +135,12 @@ impl NatsPool {
                     seq: seq_base | seq,
                     headers: message.headers,
                 };
-                match tokio::time::timeout(timeout, tx.send(out)).await {
+                match tokio::time::timeout(slow_timeout, tx.send(out)).await {
                     Ok(Ok(())) => {}
                     // 接收端已丢弃：正常结束转发任务
                     Ok(Err(_)) => break,
-                    // 下游消费过慢：计一次慢消费者并结束，避免无界堆积
+                    // 超过 slow_consumer_timeout 下游仍未接收：计一次慢消费者
+                    // 并结束转发，避免无界堆积
                     Err(_) => {
                         slow_consumers.fetch_add(1, Ordering::Relaxed);
                         break;

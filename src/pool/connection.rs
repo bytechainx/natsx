@@ -7,7 +7,7 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use async_nats::Client;
 use tokio::task::JoinHandle;
@@ -39,7 +39,7 @@ impl NatsPool {
     /// - TLS：`require_tls` 按 [`NatsConfig::effective_tls_policy`] 设置，
     ///   自定义 CA / mTLS 经 `tls_client_config` 或 `add_client_certificate` 传入；
     /// - 认证：NKey seed > token > user/password（互斥关系已由校验收紧）；
-    /// - 重连：`max_reconnects` + 指数退避（上限 `reconnect_max_delay`）。
+    /// - 重连：`max_reconnects` + 指数退避（±25% 抖动，上限 `reconnect_max_delay`）。
     ///
     /// # Errors
     ///
@@ -65,13 +65,7 @@ impl NatsPool {
             .subscription_capacity(config.subscription_capacity)
             .client_capacity(config.client_capacity)
             .max_reconnects(Some(config.max_reconnects))
-            .reconnect_delay_callback(move |attempt| {
-                let exponent = u32::try_from(attempt.min(16)).unwrap_or(16);
-                let factor = 1u32.checked_shl(exponent).unwrap_or(u32::MAX);
-                Duration::from_millis(100)
-                    .saturating_mul(factor)
-                    .min(reconnect_max_delay)
-            })
+            .reconnect_delay_callback(move |attempt| reconnect_delay(attempt, reconnect_max_delay))
             .event_callback(move |event| {
                 let connected = Arc::clone(&event_connected);
                 let disconnected = Arc::clone(&event_disconnected);
@@ -264,4 +258,72 @@ pub(super) async fn join_subscription_tasks(
         }
     }
     Ok(())
+}
+
+/// 计算第 `attempt` 次重连的退避时长：指数退避 + ±25% 抖动，封顶 `max_delay`。
+///
+/// 纯指数退避是确定性序列——大规模部署（数百客户端 + 服务端重启）下所有实例
+/// 会在同一时刻重连，形成同步风暴（thundering herd）。加入 ±25% 抖动把重连
+/// 时刻打散到一个窗口内；抖动幅度与 postgresx `PgRetryConfig` 保持一致。
+fn reconnect_delay(attempt: usize, max_delay: Duration) -> Duration {
+    let exponent = u32::try_from(attempt.min(16)).unwrap_or(16);
+    let factor = 1u32.checked_shl(exponent).unwrap_or(u32::MAX);
+    let base = Duration::from_millis(100).saturating_mul(factor);
+    // 抖动系数 0.75 ~ 1.25（±25%）；封顶在抖动之后，保证不超过 max_delay
+    let jitter_factor = 750 + (jitter_seed() % 501) as u32;
+    base.mul_f64(f64::from(jitter_factor) / 1000.0)
+        .min(max_delay)
+}
+
+/// 每次调用返回一个新的伪随机种子（时间纳秒 + 单调计数器混合，无需额外依赖）。
+fn jitter_seed() -> u64 {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos() as u64);
+    let mut state = nanos ^ counter.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    state ^= state << 13;
+    state ^= state >> 7;
+    state ^= state << 17;
+    state
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn reconnect_delay_stays_within_jitter_band() {
+        // attempt=3 → 基准 800ms，±25% 抖动后应落在 [600ms, 1000ms]
+        let max = Duration::from_secs(5);
+        for _ in 0..64 {
+            let delay = reconnect_delay(3, max);
+            assert!(
+                delay >= Duration::from_millis(600) && delay <= Duration::from_millis(1000),
+                "退避 {delay:?} 超出 ±25% 抖动区间"
+            );
+        }
+    }
+
+    #[test]
+    fn reconnect_delay_is_jittered_not_deterministic() {
+        // 32 次采样必须出现至少两个不同值，证明抖动生效（计数器保证种子互异）
+        let max = Duration::from_secs(30);
+        let samples: HashSet<Duration> = (0..32).map(|_| reconnect_delay(2, max)).collect();
+        assert!(samples.len() > 1, "32 次采样全部相同，抖动未生效");
+    }
+
+    #[test]
+    fn reconnect_delay_never_exceeds_cap() {
+        let max = Duration::from_secs(1);
+        for attempt in 0..20 {
+            let delay = reconnect_delay(attempt, max);
+            assert!(
+                delay <= max,
+                "attempt={attempt} 退避 {delay:?} 超出上限 {max:?}"
+            );
+        }
+    }
 }
