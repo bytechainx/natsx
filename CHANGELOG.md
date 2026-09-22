@@ -8,6 +8,36 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-09-22
+
+### 变更
+
+- **内部结构改写（公开 API 与可观察契约均不变）**：按 `docs/module-rules.md` §5.5 的手法，
+  把两个门面文件的生产段下沉为子模块。
+
+  **`src/config.rs`（生产段 557 → 268）** —— 新增三个子模块：环境变量加载层
+  （`from_env`、`apply_env_overrides` 与 `lookup_env` / `parse_bool` / `parse_usize` / `parse_millis`）
+  → `src/config/envvars.rs`（131 行）；TOML 解析层（`from_toml`、`toml_error_summary`、
+  `reject_secret_keys`）→ `src/config/tomlfile.rs`（75 行）；配置校验（`validate`）→
+  `src/config/validate.rs`（118 行）。门面保留模块文档、全部 `ENV_*` / `DEFAULT_*` 常量、
+  `NatsConfig` 与 `NatsConfigBuilder` 的类型定义、`Default` / `Debug`、`redact_url`、
+  `builder` / `password` / `token` / `nkey_seed` / `user_password` / `effective_tls_policy` /
+  `url_implies_tls` 与**原有内联测试**。
+
+  **`src/jetstream.rs`（生产段 524 → 99）** —— 新增两个子模块：`impl JetStreamConsumer`
+  → `src/jetstream/consumer.rs`（132 行）；`impl JetStream` → `src/jetstream/operations.rs`
+  （324 行）。门面保留模块文档、两个类型的**结构定义与 `Debug`**（门面要用结构体字面量构造它们，
+  而父模块看不到子模块的私有字段）、`validate_stream_create` / `run_bounded_command`
+  两个私有辅助与**原有内联测试**。
+
+  两处搬移**均无需放宽任何可见性**：搬走的项要么原本就是 `pub`，要么只在层内互调；`validate` /
+  `from_env` / `from_toml` / 全部构建与消费方法签名一字未改。子模块名用 `envvars` / `tomlfile`
+  而非 `env` / `toml`，避免 edition 2018 的 uniform path 让本地模块遮蔽 `std::env` 与 `toml`
+  依赖 crate（与 `ossx` / `clickhousex` 的处理一致）。门面里只被内联测试使用的
+  `validate_operation_timeout` 改由**测试模块内**导入，否则非测试构建报 unused import。
+  属**纯搬移**（两文件的行多重集比对均确认**零代码行丢失**，内联测试段除三行新增之外逐字节一致），
+  96 项测试与 doctest 结果不变。
+
 ## [0.1.3] - 2026-09-22
 
 ### 新增
