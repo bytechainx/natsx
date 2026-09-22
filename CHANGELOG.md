@@ -8,6 +8,8 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-22
+
 ### 新增
 
 - 特性 002 三类测试面：`tests/tdd_contracts.rs`（逐公开入口的行为契约，头部 `TDD-PROBE` 表
@@ -15,6 +17,21 @@
   `SPEC-MAP` 断言）、`tests/aidd_boundary.rs`（10 条对抗/边界用例与 AIDD 复核表）。
 - `tests/live_nats.rs`：真连服用例（发布/订阅往返 + ping RTT + request-reply + close 收尾），
   恒 `#[ignore]`，凭据只读 `FOUNDATIONX_NATSX_*` 环境变量。
+
+### 变更
+
+- **内部结构改写（公开 API 与可观察契约均不变）**：按 `docs/module-rules.md` §5.5 的手法，把
+  `src/pool.rs` 的建连/关停与数据面下沉为子模块 —— 建连与关停 → `src/pool/connection.rs`、
+  发布 / 订阅 / 请求-应答 → `src/pool/pubsub.rs`。门面 `src/pool.rs` 保留模块文档、全部公开类型
+  （`NatsPool` / `NatsSubscription` / `NatsMessage` / `NatsHealth` / `NatsPoolStats`）与
+  **原有内联测试**，并保留 `config` / `client` / `is_connected` / `ping` / `flush` /
+  `health_check` / `stats` 与三个私有辅助（`ready_client` / `register_task` / `take_tasks`）。
+  拆分后 `impl NatsPool` 跨三个文件，全部公开方法的签名与行为一律不变；唯一的可见性调整是把
+  **仅由门面内联测试使用**的 `join_subscription_tasks` 提为 `pub(super)`。
+  `src/pool.rs` 生产段由 **755 → 318** 行（`src/pool/connection.rs` 267、`src/pool/pubsub.rs` 213）。
+  动机：`module-rules` 是元仓库必需检查，且它审计各仓**默认分支**，故当 `pool.rs` 生产段距
+  `MR-STRUCT-007` 的 800 行 ERROR 阈值只剩 45 行时，任一仓的任意改动都可能卡住元仓库的全部 PR。
+  属**纯搬移**（行多重集比对确认零代码行丢失），全部 96 项测试与 doctest 结果不变。
 
 ## [0.1.2] - 2026-09-22
 

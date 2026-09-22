@@ -20,7 +20,11 @@ src/
 ├── config.rs     # NatsConfig / NatsConfigBuilder / TlsPolicy / ENV_* 常量（pub mod config）
 ├── error.rs      # NatsError / NatsResult（pub mod error）
 ├── jetstream.rs  # JetStream / JetStreamConsumer / JetStreamDelivery / StreamConfig 等
-├── pool.rs       # NatsPool（connect/publish/subscribe/request/ping/health_check/stats/close/drain）
+├── pool.rs       # NatsPool 门面：公开类型定义 + 内联测试 +
+│                 # config/client/is_connected/ping/flush/health_check/stats/ready_client/register_task/take_tasks
+├── pool/
+│   ├── connection.rs # 建连与关停：new / connect / connect_from_env / close / drain（含 PoolInner 构造）
+│   └── pubsub.rs     # 数据面：publish / publish_with_headers / publish_json / subscribe / request
 └── validation.rs # 纯函数校验：subject / stream / consumer / operation_timeout（pub mod validation）
 
 tests/            # api_surface.rs · config_env.rs · connect_failure.rs · pure_functions.rs
