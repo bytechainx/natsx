@@ -10,7 +10,7 @@
 //!
 //! ```bash
 //! set -a; source /home/workspace/sre/secrets/env/natsx.env; set +a
-//! CARGO_TARGET_DIR=/home/workspace/bytechainx/.cargo-target \
+//! CARGO_TARGET_DIR=/home/workspace/bytechainx/.cargo/target \
 //!   cargo test --test live_nats -- --ignored --test-threads=1
 //! ```
 //!
