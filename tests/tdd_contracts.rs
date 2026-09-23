@@ -6,7 +6,7 @@
 )]
 //! TDD 行为契约（特性 002）：逐公开入口先红后绿。
 //!
-//! 入口集合 = `specs/002-public-api-compliance-and-test-tiers/contracts/public-api-contract.md`
+//! 入口集合 = `specs/features/002-public-api-compliance-and-test-tiers/contracts/public-api-contract.md`
 //! 的 natsx 节。每个入口在变异副本上观测红、在原树观测绿；实际执行的变异与红摘要见 PR 描述。
 //!
 //! // TDD-PROBE: NatsConfig::from_env | 变异：lookup_env 不再让规范前缀优先于兼容前缀 | 红=from_env_prefers_canonical_prefix | 绿=from_env_prefers_canonical_prefix
