@@ -6,3 +6,5 @@ Cargo.lock
 /graft/
 # omc agent 本地状态（checkpoint / replay，可再生，勿入库）
 /.omc/
+# 日志文件（构建/测试/clippy/fmt，可再生）
+*.log
