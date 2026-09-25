@@ -25,7 +25,7 @@ fn env_guard() -> MutexGuard<'static, ()> {
 /// 规范前缀与兼容前缀下的全部后缀。
 ///
 /// 用例必须对**整个** `FOUNDATIONX_NATSX_*` / `FOUNDATIONX_NATS_*` 空间保持封闭：
-/// 本机联调常把 live 凭据 `source` 进 shell（`run-release-gate.sh --live` 即如此），
+/// 本机联调常把 live 凭据 `source` 进 shell，
 /// 此时进程环境里已存在 `URL` 等键。`from_env` 的 `URL` 优先于 `SERVERS`，
 /// 只清理本用例显式设置的少数键会残留外部注入，导致断言随调用环境漂移。
 const ENV_SUFFIXES: [&str; 21] = [
