@@ -1,6 +1,6 @@
 # natsx 公开 API
 
-**版本 / 角色**：`natsx 0.1.0` · NATS 适配器（Core NATS 发布/订阅 + JetStream 持久消费 + TLS 策略 + 连接池化 + 健康报告）
+**版本 / 角色**：`natsx 0.1.4` · NATS 适配器（Core NATS 发布/订阅 + JetStream 持久消费 + TLS 策略 + 连接池化 + 健康报告）
 
 ## 公开消费面
 
@@ -46,8 +46,9 @@ pool.drain(std::time::Duration::from_secs(5)).await?;
 
 ## 安全约定
 
-- `password` / `token` / `nkey_seed` 不进入 `Debug`（渲染为 `***`），URL 内嵌 userinfo 同样脱敏；
+- `password` / `token` / `nkey_seed` / `jwt` 不进入 `Debug`（渲染为 `***`），URL 内嵌 userinfo 同样脱敏；
 - 敏感字段禁止出现在 TOML，只能经环境变量或 `NatsConfigBuilder` 注入；
+- `slow_consumer_timeout` 可选，缺省回退 `operation_timeout`；零值 `validate` 拒绝。
 - 生产代码不含 `unwrap` / `expect` / `panic`，错误一律经 `NatsError` 返回。
 
 ## 能力边界
