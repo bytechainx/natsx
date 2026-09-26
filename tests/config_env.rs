@@ -28,7 +28,7 @@ fn env_guard() -> MutexGuard<'static, ()> {
 /// 本机联调常把 live 凭据 `source` 进 shell，
 /// 此时进程环境里已存在 `URL` 等键。`from_env` 的 `URL` 优先于 `SERVERS`，
 /// 只清理本用例显式设置的少数键会残留外部注入，导致断言随调用环境漂移。
-const ENV_SUFFIXES: [&str; 21] = [
+const ENV_SUFFIXES: [&str; 22] = [
     "URL",
     "SERVERS",
     "USER",
@@ -45,6 +45,7 @@ const ENV_SUFFIXES: [&str; 21] = [
     "JETSTREAM",
     "CONNECT_TIMEOUT_MS",
     "OPERATION_TIMEOUT_MS",
+    "SLOW_CONSUMER_TIMEOUT_MS",
     "SUBSCRIPTION_CAPACITY",
     "CLIENT_CAPACITY",
     "MAX_RECONNECTS",

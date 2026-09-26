@@ -237,7 +237,7 @@ async fn assert_connection_and_consumption() {
     };
 }
 
-/// S-5：验收——离线即可覆盖公开 API 面、env 解析与前缀优先级、连接失败路径、校验纯函数。
+/// S-5：验收——默认 `cargo test` 离线；分层锚点见 `标准.md` §5。本函数只证离线可达常量与纯函数。
 #[test]
 fn assert_acceptance() {
     // 公开 API 面：常量与纯函数可达。

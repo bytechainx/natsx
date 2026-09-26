@@ -5,7 +5,7 @@
 NATS 适配器：Core NATS 发布/订阅 + JetStream 持久消费，零内部依赖的标准 Rust 组件库。
 
 - **连接池**：`NatsPool` 共享 `async-nats` 客户端句柄，`Clone` 后多任务共享同一连接；
-- **TLS 策略**：`TlsPolicy::{Prefer, Require, Disable}`，loopback 默认 `Prefer`、非 loopback 默认 `Require`，远程明文在配置层即被拒绝（fail-closed）；
+- **TLS 策略**：`TlsPolicy::{Prefer, Require, Disable}`，loopback 默认 `Prefer`、非 loopback 默认 `Require`，远程明文在配置层即被拒绝（fail-closed）；自定义 CA 走 `add_root_certificates`；
 - **认证**：user/password、token、NKey seed，敏感字段不进入 `Debug`；
 - **超时与重连**：`connect_timeout`、`operation_timeout`、`max_reconnects` 与指数退避；
 - **JetStream**：带 ack 的持久发布、stream 管理、durable/ephemeral pull consumer、有限拉取与 `ack` / `nak` / `progress` / `term`；
