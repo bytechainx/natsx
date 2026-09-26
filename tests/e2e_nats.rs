@@ -94,7 +94,10 @@ async fn e2e_live_full_journey() {
         );
     }
     let debug = format!("{config:?}");
-    assert!(debug.contains("***") || !debug.contains('@'), "Debug 不得含 URL userinfo");
+    assert!(
+        debug.contains("***") || !debug.contains('@'),
+        "Debug 不得含 URL userinfo"
+    );
 
     let pool = NatsPool::connect(config).await.expect("建连必须成功");
     assert!(pool.is_connected());
@@ -179,7 +182,10 @@ async fn jetstream_roundtrip(pool: &NatsPool) -> NatsResult<()> {
 
         let worker = unique_name("c");
         let consumer = js
-            .consumer(&stream, JetStreamConsumerConfig::durable(&worker).filter(&subject))
+            .consumer(
+                &stream,
+                JetStreamConsumerConfig::durable(&worker).filter(&subject),
+            )
             .await?;
         let delivery = consumer
             .next_timeout(Duration::from_secs(5))
