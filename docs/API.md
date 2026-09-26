@@ -8,7 +8,7 @@
 | --- | --- |
 | `NatsConfig` / `NatsConfigBuilder` | 配置：`from_env` / `from_toml` / `validate` / `builder`；`SCHEMA_VERSION = 1` |
 | `TlsPolicy` / `url_is_loopback` | TLS 策略（`Prefer` / `Require` 等）与 loopback 地址判定 |
-| `NatsPool` | `connect` / `new` / `publish` / `publish_with_headers` / `subscribe` / `request` / `ping` / `flush` / `health_check` / `stats` / `close` / `drain`；可克隆 |
+| `NatsPool` | `connect` / `connect_from_env` / `new` / `publish` / `publish_json` / `publish_with_headers` / `subscribe` / `request` / `ping` / `flush` / `health_check` / `stats` / `close` / `drain`；可克隆 |
 | `NatsSubscription` / `NatsMessage` | 订阅流（`next()` 或 `Stream`）与消息 |
 | `NatsHealth` / `NatsPoolStats` | 结构化健康与统计 |
 | `JetStream` | `publish` / `publish_json` / stream 管理 / `consumer` |
@@ -42,7 +42,7 @@ pool.drain(std::time::Duration::from_secs(5)).await?;
 - 非 loopback 默认 `TlsPolicy::Require`：`ConnectOptions::require_tls(true)`，握手失败即连接失败；
 - 显式 `NatsConfig::tls_policy` 优先，其次 `tls` 布尔开关；
 - `validate()` 拒绝「非 loopback + 非 Require」组合（fail-closed）；
-- 自定义 CA 经 `tls_client_config` 注入；仅配置 mTLS 证书时使用 `add_client_certificate`（保留系统根证书）。
+- 自定义 CA 经 `add_root_certificates` 注入（不扫平台根）；仅配置 mTLS 证书时使用 `add_client_certificate`（保留系统根证书）。
 
 ## 安全约定
 

@@ -10,12 +10,17 @@
 
 ### 修复
 
+- **自定义 CA 建连不再扫平台证书目录**：`async-nats` 0.50 在已设置 `tls_client_config` 时仍 `load_native_certs`，目录里任一 PEM 不可读即失败。现改为 `add_root_certificates`（证书列表非空才跳过平台根）。
+
 - **重连退避加入 ±25% 抖动**（`reconnect_delay_callback` 路径）：原先纯指数退避是
   确定性序列，大规模部署下服务端重启会引发所有客户端同时重连的同步风暴
   （thundering herd）。抖动幅度与 postgresx `PgRetryConfig` 一致；退避上限仍受
   `reconnect_max_delay` 约束。（对抗审查 P1-1）
 
 ### 新增
+
+- 导出 `ENV_SLOW_CONSUMER_TIMEOUT_MS`，与已有 env 后缀 / TOML 键对齐；`docs/API.md` 补 `connect_from_env` / `NatsPool::publish_json`。
+- `tests/e2e_nats.rs` 增加 `e2e_live_full_journey`（ignore）：Core 往返、request-reply、JetStream pull/ack、close。凭据只从环境注入。
 
 - **`NatsConfig::slow_consumer_timeout`（可选）**：订阅转发任务判定慢消费者的独立
   超时，与服务端操作截止时间 `operation_timeout` 语义解耦。默认 `None` 回退

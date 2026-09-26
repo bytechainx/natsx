@@ -37,7 +37,7 @@ impl NatsPool {
     ///
     /// 连接选项来源：
     /// - TLS：`require_tls` 按 [`NatsConfig::effective_tls_policy`] 设置，
-    ///   自定义 CA / mTLS 经 `tls_client_config` 或 `add_client_certificate` 传入；
+    ///   自定义 CA 经 `add_root_certificates`；仅 mTLS 经 `add_client_certificate`；
     /// - 认证：NKey seed > token > user/password（互斥关系已由校验收紧）；
     /// - 重连：`max_reconnects` + 指数退避（±25% 抖动，上限 `reconnect_max_delay`）。
     ///

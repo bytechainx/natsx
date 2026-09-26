@@ -82,6 +82,8 @@ pub const ENV_JETSTREAM: &str = "FOUNDATIONX_NATSX_JETSTREAM";
 pub const ENV_CONNECT_TIMEOUT_MS: &str = "FOUNDATIONX_NATSX_CONNECT_TIMEOUT_MS";
 /// `FOUNDATIONX_NATSX_OPERATION_TIMEOUT_MS`：操作超时（毫秒）。
 pub const ENV_OPERATION_TIMEOUT_MS: &str = "FOUNDATIONX_NATSX_OPERATION_TIMEOUT_MS";
+/// `FOUNDATIONX_NATSX_SLOW_CONSUMER_TIMEOUT_MS`：慢消费者判定超时（毫秒）。
+pub const ENV_SLOW_CONSUMER_TIMEOUT_MS: &str = "FOUNDATIONX_NATSX_SLOW_CONSUMER_TIMEOUT_MS";
 /// `FOUNDATIONX_NATSX_SUBSCRIPTION_CAPACITY`：单订阅缓冲上限。
 pub const ENV_SUBSCRIPTION_CAPACITY: &str = "FOUNDATIONX_NATSX_SUBSCRIPTION_CAPACITY";
 /// `FOUNDATIONX_NATSX_CLIENT_CAPACITY`：驱动命令队列容量。
@@ -96,7 +98,7 @@ pub const ENV_IGNORE_DISCOVERED_SERVERS: &str = "FOUNDATIONX_NATSX_IGNORE_DISCOV
 /// NATS 客户端配置。
 ///
 /// 可直接反序列化 TOML（`schema_version` + 扁平字段），
-/// 但**敏感字段**（`password` / `token` / `nkey_seed`）不允许出现在 TOML 中，
+/// 但**敏感字段**（`password` / `token` / `nkey_seed` / `jwt`）不允许出现在 TOML 中，
 /// 只能经环境变量或 [`NatsConfigBuilder`] 注入。
 #[derive(Clone)]
 pub struct NatsConfig {
