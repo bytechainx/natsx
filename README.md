@@ -100,7 +100,7 @@ if let Some(delivery) = consumer.next_timeout(Duration::from_secs(2)).await? {
 判定顺序：显式 `tls_policy` → `tls` 布尔开关 → host 自动推导。
 
 - `validate()` 拒绝“非 loopback + 非 `Require`”的组合，错误在发出网络请求之前返回；
-- 自定义 CA（`tls_ca_file`）通过 `ConnectOptions::tls_client_config` 注入，根证书集合即该 CA bundle；
+- 自定义 CA（`tls_ca_file`）通过 `ConnectOptions::add_root_certificates` 注入，根证书集合即该 CA bundle；
 - 仅配置 mTLS 证书（`tls_cert_file` + `tls_key_file`）时使用 `add_client_certificate`，同时保留系统根证书；
 - `TlsPolicy::Disable` 表示“不主动要求 TLS”；`async-nats` 未提供强制关闭 TLS 的开关，若服务端强制要求 TLS 仍会升级。
 

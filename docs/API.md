@@ -1,6 +1,6 @@
 # natsx 公开 API
 
-**版本 / 角色**：`natsx 0.1.0` · NATS 适配器（Core NATS 发布/订阅 + JetStream 持久消费 + TLS 策略 + 连接池化 + 健康报告）
+**版本 / 角色**：`natsx 0.1.4` · NATS 适配器（Core NATS 发布/订阅 + JetStream 持久消费 + TLS 策略 + 连接池化 + 健康报告）
 
 ## 公开消费面
 
@@ -8,7 +8,7 @@
 | --- | --- |
 | `NatsConfig` / `NatsConfigBuilder` | 配置：`from_env` / `from_toml` / `validate` / `builder`；`SCHEMA_VERSION = 1` |
 | `TlsPolicy` / `url_is_loopback` | TLS 策略（`Prefer` / `Require` 等）与 loopback 地址判定 |
-| `NatsPool` | `connect` / `new` / `publish` / `publish_with_headers` / `subscribe` / `request` / `ping` / `flush` / `health_check` / `stats` / `close` / `drain`；可克隆 |
+| `NatsPool` | `connect` / `connect_from_env` / `new` / `publish` / `publish_json` / `publish_with_headers` / `subscribe` / `request` / `ping` / `flush` / `health_check` / `stats` / `close` / `drain`；可克隆 |
 | `NatsSubscription` / `NatsMessage` | 订阅流（`next()` 或 `Stream`）与消息 |
 | `NatsHealth` / `NatsPoolStats` | 结构化健康与统计 |
 | `JetStream` | `publish` / `publish_json` / stream 管理 / `consumer` |
@@ -42,12 +42,13 @@ pool.drain(std::time::Duration::from_secs(5)).await?;
 - 非 loopback 默认 `TlsPolicy::Require`：`ConnectOptions::require_tls(true)`，握手失败即连接失败；
 - 显式 `NatsConfig::tls_policy` 优先，其次 `tls` 布尔开关；
 - `validate()` 拒绝「非 loopback + 非 Require」组合（fail-closed）；
-- 自定义 CA 经 `tls_client_config` 注入；仅配置 mTLS 证书时使用 `add_client_certificate`（保留系统根证书）。
+- 自定义 CA 经 `add_root_certificates` 注入（不扫平台根）；仅配置 mTLS 证书时使用 `add_client_certificate`（保留系统根证书）。
 
 ## 安全约定
 
-- `password` / `token` / `nkey_seed` 不进入 `Debug`（渲染为 `***`），URL 内嵌 userinfo 同样脱敏；
+- `password` / `token` / `nkey_seed` / `jwt` 不进入 `Debug`（渲染为 `***`），URL 内嵌 userinfo 同样脱敏；
 - 敏感字段禁止出现在 TOML，只能经环境变量或 `NatsConfigBuilder` 注入；
+- `slow_consumer_timeout` 可选，缺省回退 `operation_timeout`；零值 `validate` 拒绝。
 - 生产代码不含 `unwrap` / `expect` / `panic`，错误一律经 `NatsError` 返回。
 
 ## 能力边界

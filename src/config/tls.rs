@@ -112,9 +112,10 @@ impl NatsConfig {
     /// 把 TLS 策略与证书材料落到 `async-nats` 连接选项上。
     ///
     /// - 始终设置 `require_tls(policy.require_tls())`；
-    /// - 配置了自定义 CA 时，用 `tls_client_config` 传入自建 `rustls::ClientConfig`
-    ///   （根证书集合 = 该 CA bundle，不再叠加系统根证书）；
-    /// - 仅配置 mTLS 证书时，使用 `add_client_certificate`（保留系统根证书）。
+    /// - 配置了自定义 CA 时，走 `add_root_certificates`（`async-nats` 0.50 在
+    ///   `tls_client_config.is_some()` 时仍会 `load_native_certs`，任一平台 PEM
+    ///   不可读即失败；证书列表非空才跳过平台根）。先解析 CA 做 fail-fast。
+    /// - 仅配置 mTLS 证书时，使用 `add_client_certificate`（会叠加系统根证书）。
     pub(crate) fn apply_tls(
         &self,
         options: async_nats::ConnectOptions,
@@ -127,8 +128,14 @@ impl NatsConfig {
                     (Some(cert), Some(key)) => Some((cert.as_str(), key.as_str())),
                     _ => None,
                 };
-                let config = build_tls_client_config(ca, identity)?;
-                Ok(options.tls_client_config(config))
+                let _validated = build_tls_client_config(ca, identity)?;
+                let options = options.add_root_certificates(PathBuf::from(ca));
+                Ok(match identity {
+                    Some((cert, key)) => {
+                        options.add_client_certificate(PathBuf::from(cert), PathBuf::from(key))
+                    }
+                    None => options,
+                })
             }
             (None, Some(cert), Some(key)) => {
                 Ok(options.add_client_certificate(PathBuf::from(cert), PathBuf::from(key)))

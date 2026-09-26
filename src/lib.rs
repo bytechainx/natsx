@@ -40,7 +40,7 @@
 //! - 非 loopback 默认 [`TlsPolicy::Require`]：`ConnectOptions::require_tls(true)`，握手失败即连接失败；
 //! - 显式设置 [`NatsConfig::tls_policy`] 优先，其次 [`NatsConfig::tls`] 布尔开关；
 //! - `validate()` 会拒绝“非 loopback + 非 Require”的组合（fail-closed）；
-//! - 自定义 CA 经 `tls_client_config` 注入（根证书集合即该 CA bundle），
+//! - 自定义 CA 经 `add_root_certificates` 注入（根证书集合即该 CA bundle），
 //!   仅配置 mTLS 证书时使用 `add_client_certificate`（保留系统根证书）。
 //!
 //! # 环境变量
@@ -81,9 +81,9 @@ pub use config::{
     url_is_loopback, NatsConfig, NatsConfigBuilder, TlsPolicy, DEFAULT_CLIENT_NAME, DEFAULT_URL,
     ENV_CLIENT_CAPACITY, ENV_CONNECT_TIMEOUT_MS, ENV_JETSTREAM, ENV_LEGACY_PREFIX,
     ENV_MAX_RECONNECTS, ENV_NAME, ENV_NKEY_SEED, ENV_OPERATION_TIMEOUT_MS, ENV_PASSWORD,
-    ENV_PREFIX, ENV_RECONNECT_MAX_DELAY_MS, ENV_SERVERS, ENV_SUBSCRIPTION_CAPACITY, ENV_TLS,
-    ENV_TLS_CA_FILE, ENV_TLS_CERT_FILE, ENV_TLS_KEY_FILE, ENV_TLS_POLICY, ENV_TOKEN, ENV_URL,
-    ENV_USER, ENV_USERNAME, SCHEMA_VERSION,
+    ENV_PREFIX, ENV_RECONNECT_MAX_DELAY_MS, ENV_SERVERS, ENV_SLOW_CONSUMER_TIMEOUT_MS,
+    ENV_SUBSCRIPTION_CAPACITY, ENV_TLS, ENV_TLS_CA_FILE, ENV_TLS_CERT_FILE, ENV_TLS_KEY_FILE,
+    ENV_TLS_POLICY, ENV_TOKEN, ENV_URL, ENV_USER, ENV_USERNAME, SCHEMA_VERSION,
 };
 pub use error::{NatsError, NatsResult};
 pub use jetstream::{
