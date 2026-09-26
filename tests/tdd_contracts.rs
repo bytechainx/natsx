@@ -25,7 +25,7 @@ use std::time::Duration;
 use natsx::{NatsConfig, NatsError, NatsPool, ENV_LEGACY_PREFIX, ENV_PREFIX, ENV_URL, ENV_USER};
 
 /// 本用例会读写的环境变量后缀（规范前缀 + 兼容前缀两份）。
-const ENV_SUFFIXES: [&str; 21] = [
+const ENV_SUFFIXES: [&str; 22] = [
     "URL",
     "SERVERS",
     "USER",
@@ -42,6 +42,7 @@ const ENV_SUFFIXES: [&str; 21] = [
     "JETSTREAM",
     "CONNECT_TIMEOUT_MS",
     "OPERATION_TIMEOUT_MS",
+    "SLOW_CONSUMER_TIMEOUT_MS",
     "SUBSCRIPTION_CAPACITY",
     "CLIENT_CAPACITY",
     "MAX_RECONNECTS",
