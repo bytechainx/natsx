@@ -8,6 +8,12 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-03
+
+### 修正
+
+- 修正 TLS 明文负例使用独立有界 INFO 桩，验证 ClientHello 并避免真实服务支持 TLS 时误报。
+
 ### 修复
 
 - **自定义 CA 建连不再扫平台证书目录**：`async-nats` 0.50 在已设置 `tls_client_config` 时仍 `load_native_certs`，目录里任一 PEM 不可读即失败。现改为 `add_root_certificates`（证书列表非空才跳过平台根）。

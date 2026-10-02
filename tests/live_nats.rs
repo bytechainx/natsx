@@ -4,12 +4,12 @@
     clippy::panic,
     clippy::unreachable
 )]
-//! live 真连服（natsx）：覆盖全部公开接口，需先 `source /home/zone/workspace/sre/secrets/env/natsx.env`。
+//! live 真连服（natsx）：覆盖全部公开接口，从工作区 `.config/natsx.env` 或进程环境注入配置。
 //!
 //! 全部用例 `#[ignore]`，默认不跑（CI 行为不变）。显式运行：
 //!
 //! ```bash
-//! set -a; source /home/zone/workspace/sre/secrets/env/natsx.env; set +a
+//! set -a; source /home/workspace/bytechainx/.config/natsx.env; set +a
 //! CARGO_TARGET_DIR=/home/workspace/bytechainx/.cargo/target \
 //!   cargo test --test live_nats -- --ignored --test-threads=1
 //! ```
@@ -363,21 +363,52 @@ async fn live_nats_slow_consumer_accounting() {
 #[tokio::test]
 #[ignore = "需要真实 NATS 服务与 FOUNDATIONX_NATSX_* 环境变量"]
 async fn live_nats_tls_require_on_plaintext_fails_closed() {
-    let url = env_or_fail(ENV_URL);
-    let user = env_or_fail(ENV_USER);
-    let password = env_or_fail(ENV_PASSWORD);
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    // 真实服务可能支持 TLS；负例用独立明文 INFO 桩固定此前提。
+    let deadline = Duration::from_secs(2);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("本机监听必须成功");
+    let url = format!(
+        "nats://{}",
+        listener.local_addr().expect("必须取得临时端口")
+    );
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = tokio::time::timeout(deadline, listener.accept())
+            .await
+            .expect("客户端必须在期限内连接")
+            .expect("接受连接必须成功");
+        tokio::time::timeout(
+            deadline,
+            socket.write_all(b"INFO {\"tls_required\":false}\r\n"),
+        )
+        .await
+        .expect("INFO 必须在期限内发送")
+        .expect("发送 INFO 必须成功");
+        let mut header = [0; 3];
+        tokio::time::timeout(deadline, socket.read_exact(&mut header))
+            .await
+            .expect("客户端必须在期限内发送握手")
+            .expect("读取握手头必须成功");
+        header
+    });
     let config = NatsConfigBuilder::new()
         .url(url.as_str())
-        .credentials(user.as_str(), password.as_str())
+        .connect_timeout(deadline)
         .tls_policy(TlsPolicy::Require)
         .build()
         .expect("Builder 构建必须成功");
     let error = NatsPool::connect(config)
         .await
         .expect_err("对明文端口强制 TLS 必须失败");
-    // 实测分类：rustls 把「明文响应当 TLS 记录」报为 IO 错误（corrupt message），
-    // 经 map_connect_error 归入 Connection（按文档口径可重试）。E2E 关注的
-    // fail-closed 性质是「连接必须失败」，分类不在此断言。
+    let header = tokio::time::timeout(deadline, server)
+        .await
+        .expect("明文桩任务必须在期限内完成")
+        .expect("明文桩任务必须完成");
+    // 同时验证客户端尝试 TLS，防止仅凭断连错误掩盖明文 CONNECT 退化。
+    assert_eq!(header[0], 0x16, "必须发送 TLS handshake record");
+    assert_eq!(header[1], 0x03, "必须发送 TLS record 版本");
     assert!(
         matches!(error, NatsError::Connection(_) | NatsError::Config(_)),
         "握手失败应落入连接/配置类: {error:?}"
