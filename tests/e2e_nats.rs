@@ -252,12 +252,13 @@ mod cover {
 
     pub fn hit(kind: &'static str, id: &'static str) {
         assert!(
-            super::E2E_MANIFEST.iter().any(|(k, i)| *k == kind && *i == id),
+            super::E2E_MANIFEST
+                .iter()
+                .any(|(k, i)| *k == kind && *i == id),
             "登记了清单外的公开条目：{kind} {id}"
         );
         log().lock().expect("覆盖登记表锁中毒").insert((kind, id));
     }
-
 }
 
 fn hit(kind: &'static str, id: &'static str) {
@@ -316,8 +317,11 @@ fn phase_config_surface() {
     let cert_path = tls_dir.join("client.pem");
     let key_path = tls_dir.join("client.key");
     for f in [&ca_path, &cert_path, &key_path] {
-        std::fs::write(f, b"-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n")
-            .expect("写临时 TLS 文件");
+        std::fs::write(
+            f,
+            b"-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n",
+        )
+        .expect("写临时 TLS 文件");
     }
     let ca = ca_path.to_string_lossy().to_string();
     let cert = cert_path.to_string_lossy().to_string();
@@ -340,14 +344,20 @@ fn phase_config_surface() {
             .tls(false)
             .tls_policy(TlsPolicy::Prefer)
     };
-    let built = base().credentials("u", "p").build().expect("user/password 构造必须成功");
+    let built = base()
+        .credentials("u", "p")
+        .build()
+        .expect("user/password 构造必须成功");
     let _ = base().token("t").build().expect("token 构造必须成功");
     let _ = base()
         .nkey_seed("SUAIBDPBAUTWCWBKIO6XHQNINK5FWJW4OHLXC3HQ2KFE4PEJUA44CNHTCB")
         .build()
         .expect("nkey_seed 构造必须成功");
     // tls_ca_file / tls_client_identity：与 CA 文件前置一并真实调用。
-    let _ = base().tls_ca_file(&ca).build().expect("tls_ca_file 构造必须成功");
+    let _ = base()
+        .tls_ca_file(&ca)
+        .build()
+        .expect("tls_ca_file 构造必须成功");
     let _ = base()
         .tls_client_identity(&cert, &key)
         .build()
@@ -443,9 +453,15 @@ operation_timeout_ms = 300
         .expect_err("未连接不可发布");
     JetStream::from_pool(&pool).expect_err("未连接不可构造 JetStream");
     for id in [
-        "NatsConfig::from_toml", "NatsConfig::validate", "NatsError::connection",
-        "NatsError::is_retryable", "NatsPool::connect", "NatsPool::new",
-        "NatsPool::is_connected", "NatsPool::publish", "NatsPool::health_check",
+        "NatsConfig::from_toml",
+        "NatsConfig::validate",
+        "NatsError::connection",
+        "NatsError::is_retryable",
+        "NatsPool::connect",
+        "NatsPool::new",
+        "NatsPool::is_connected",
+        "NatsPool::publish",
+        "NatsPool::health_check",
         "JetStream::from_pool",
     ] {
         hit("fn", id);
@@ -487,13 +503,9 @@ async fn e2e_live_full_journey() {
     // publish_with_headers：Core 数据面带 header 的发布路径。
     let mut headers = async_nats::header::HeaderMap::new();
     headers.insert("x-natsx-e2e", "1");
-    pool.publish_with_headers(
-        &unique_subject("hdrs"),
-        headers,
-        b"hdr".to_vec(),
-    )
-    .await
-    .expect("publish_with_headers");
+    pool.publish_with_headers(&unique_subject("hdrs"), headers, b"hdr".to_vec())
+        .await
+        .expect("publish_with_headers");
 
     // connect_from_env：与 from_env 合成一致的独立入口（真实凭据已在进程环境）。
     let env_pool = NatsPool::connect_from_env()
@@ -501,10 +513,7 @@ async fn e2e_live_full_journey() {
         .expect("connect_from_env 必须成功");
     assert!(env_pool.is_connected());
     // drain：优雅排空（在独立池上做，避免影响后续断言）。
-    env_pool
-        .drain(Duration::from_secs(5))
-        .await
-        .expect("drain");
+    env_pool.drain(Duration::from_secs(5)).await.expect("drain");
     env_pool.close().await.expect("close env_pool");
 
     if health.jetstream {
@@ -612,8 +621,10 @@ async fn jetstream_extended_roundtrip(pool: &NatsPool) -> NatsResult<()> {
 
     let outcome = async {
         // get_or_create_stream（幂等）
-        js.get_or_create_stream(StreamConfig::new(&stream, &subject)).await?;
-        js.get_or_create_stream(StreamConfig::new(&stream, &subject)).await?;
+        js.get_or_create_stream(StreamConfig::new(&stream, &subject))
+            .await?;
+        js.get_or_create_stream(StreamConfig::new(&stream, &subject))
+            .await?;
 
         // with_operation_timeout / operation_timeout / context
         let js2 = js.clone().with_operation_timeout(Duration::from_secs(5))?;
@@ -639,7 +650,10 @@ async fn jetstream_extended_roundtrip(pool: &NatsPool) -> NatsResult<()> {
 
         let worker = unique_name("pext");
         let consumer = js2
-            .consumer(&stream, JetStreamConsumerConfig::durable(&worker).filter(&subject))
+            .consumer(
+                &stream,
+                JetStreamConsumerConfig::durable(&worker).filter(&subject),
+            )
             .await?;
 
         // next_batch 一次取两条
@@ -657,8 +671,8 @@ async fn jetstream_extended_roundtrip(pool: &NatsPool) -> NatsResult<()> {
         let _ = meta.stream_sequence;
         let _ = meta.consumer_sequence;
         let _ = meta.pending;
-        first.progress().await?;      // 延长 ack 等待
-        first.double_ack().await?;    // 幂等 ack
+        first.progress().await?; // 延长 ack 等待
+        first.double_ack().await?; // 幂等 ack
 
         // 第 2 条：nak（带延迟）后再取回，最终 term 终止
         let second = iter.next().expect("batch 次条");
@@ -669,10 +683,11 @@ async fn jetstream_extended_roundtrip(pool: &NatsPool) -> NatsResult<()> {
             .await?
             .expect("nak 后应可重新投递");
         assert_eq!(again.payload().as_ref(), b"b");
-        again.term().await?;          // 终止，不再投递
+        again.term().await?; // 终止，不再投递
 
         // publish_json
-        js2.publish_json(&subject, &serde_json::json!({"e2e": "ext"})).await?;
+        js2.publish_json(&subject, &serde_json::json!({"e2e": "ext"}))
+            .await?;
 
         // purge_stream：清空消息（保留 stream）
         js2.purge_stream(&stream).await?;
