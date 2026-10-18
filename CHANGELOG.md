@@ -8,6 +8,14 @@
 
 ## [Unreleased]
 
+### 修正
+
+- **live TLS 明文负例改用真实服务 + 凭据**：原用例在 127.0.0.1 起 INFO 桩断言 ClientHello 字节，与 `#[ignore]` 声明的「需真实服务与 `FOUNDATIONX_NATSX_*`」不符，且把断言绑在 rustls 的记录层行为上。现改为对注入的真实服务强制 `TlsPolicy::Require`，断言连接失败且错误固定归入 `Connection` 类（实测分类：rustls 把明文响应当 TLS 记录报为 IO 错误，经 `map_connect_error` 归入 `Connection`）。
+
+### 文档
+
+- `tests/live_nats.rs` / `tests/e2e_nats.rs` 的注入示例统一为工作区根 `.config/natsx.env`，不再指向其它工作区的 secrets 路径。
+
 ## [0.1.5] - 2026-10-03
 
 ### 修正

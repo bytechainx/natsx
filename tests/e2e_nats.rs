@@ -10,12 +10,11 @@
 //!    → request-reply → JetStream 发布/拉取/ack → 删自建 stream → close
 //!
 //! 凭据只从环境读取（`FOUNDATIONX_NATSX_*` 优先，兼容 `FOUNDATIONX_NATS_*`）。
-//! 运维登记（含 prod broker）在 ZoneCNH/opsstack `sre/secrets/env/*.md`，**禁止**抄进本仓。
-//! 本机注入示例（路径以操作者机器为准，勿提交）：
+//! 本机注入只认工作区根 `.config/natsx.env`（禁止入库、禁止跨工作区读 opsstack / xhyper secrets）。
 //!
 //! ```bash
 //! set -a
-//! source /home/workspace/xhyper.rs/ops/sre/secrets/env/natsx.env
+//! . /home/workspace/bytechainx/.config/natsx.env
 //! set +a
 //! cargo test --test e2e_nats -- --ignored --test-threads=1
 //! ```
